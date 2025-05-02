@@ -1,5 +1,4 @@
 /// <reference lib="deno.ns" />
-/// <reference types="https://deno.land/x/typescript/lib/lib.deno.ns.d.ts" />
 
 import { Server } from "npm:@modelcontextprotocol/sdk@1.5.0/server/index.js";
 import { StdioServerTransport } from "npm:@modelcontextprotocol/sdk@1.5.0/server/stdio.js";
@@ -96,7 +95,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
           content: [
             {
               type: "text",
-              text: `Error reading file: ${error.message}`,
+              text: `Error reading file: ${(error as Error).message}`,
             },
           ],
           isError: true,
