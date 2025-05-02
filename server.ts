@@ -1,3 +1,6 @@
+/// <reference lib="deno.ns" />
+/// <reference types="https://deno.land/x/typescript/lib/lib.deno.ns.d.ts" />
+
 import { Server } from "npm:@modelcontextprotocol/sdk@1.5.0/server/index.js";
 import { StdioServerTransport } from "npm:@modelcontextprotocol/sdk@1.5.0/server/stdio.js";
 import {
@@ -8,6 +11,12 @@ import {
   CallToolRequest,
 } from "npm:@modelcontextprotocol/sdk@1.5.0/types.js";
 
+declare const Deno: {
+  readTextFile: (path: string) => Promise<string>;
+  env: {
+    get: (key: string) => string | undefined;
+  };
+};
 
 const TOOLS: Tool[] = [
   {
@@ -59,17 +68,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
         };
       }
 
+      const keywordList = keywords.split(/\s+/).filter(Boolean);
+      const results: string[] = [];
+      const maxResults = 10;
+
+      try {
+        const currentDir = new URL(".", import.meta.url).pathname;
+        const filePath = `${currentDir}utf_ken_all.csv`;
+        const content = await Deno.readTextFile(filePath);
+        const lines = content.split("\n");
+
+        for (const line of lines) {
+          const cols = line.split(",");
+          const zipcode = cols[2]?.replace(/"/g, "");
+          const pref = cols[6]?.replace(/"/g, "");
+          const city = cols[7]?.replace(/"/g, "");
+          const town = cols[8]?.replace(/"/g, "");
+
+          const haystack = [zipcode, pref, city, town].join("");
+          if (keywordList.every(k => haystack.includes(k))) {
+            results.push(`${zipcode}, ${pref}, ${city}, ${town}`);
+            if (results.length >= maxResults) break;
+          }
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error reading file: ${error.message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (results.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No results found.",
+            },
+          ],
+          isError: false,
+        };
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: "test",
+            text: results.join("\n"),
           },
         ],
-        isError: true
+        isError: false,
       };
-      break;
     default:
       return {
         content: [
